@@ -1,0 +1,37 @@
+---
+# Common OS configuration
+- name: Modify sysctl entries
+  include: sysctl.yml
+  become: true
+
+- name: Install ntp on Debian/Ubuntu
+  apt:
+    name: ntp
+    state: present
+    update_cache: yes
+  become: true
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install ntp on RedHat/CentOS
+  yum:
+    name: ntp
+    state: present
+  become: true
+  when: ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
+- name: Enable and start ntp on RedHat/CentOS
+  systemd:
+    name: ntpd
+    state: started
+    enabled: yes
+  become: true
+  when: ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
+- name: Enable and start ntp on Debian/Ubuntu
+  systemd:
+    name: ntp
+    state: started
+    enabled: yes
+  become: true
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+

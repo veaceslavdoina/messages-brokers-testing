@@ -1,0 +1,11 @@
+---
+# Create cloud environment
+- name: Create cloud environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: aws-vpc
+    - { role: aws-ec2, when: project.provision.vm or project.provision.vt }
+    - { role: aws-rds, when: project.provision.db }
+    - { role: aws-efs, when: project.provision.fs }

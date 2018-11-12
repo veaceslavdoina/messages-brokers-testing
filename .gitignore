@@ -1,0 +1,8 @@
+# Ignore some type of files
+
+# macOS
+*.DS_Store
+
+# Ansible
+*.retry
+

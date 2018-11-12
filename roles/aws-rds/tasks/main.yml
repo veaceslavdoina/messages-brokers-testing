@@ -1,0 +1,107 @@
+---
+# Create AWS RDS environment
+- name: Register variables
+  set_fact:
+    aws_rds_master_username: "{{ lookup('env','aws_rds_master_username') }}"
+    aws_rds_master_user_password: "{{ lookup('env','aws_rds_master_user_password') }}"
+    aws_rds_db_name: "{{ lookup('env','aws_rds_db_name') }}"
+    aws_rds_db_username: "{{ lookup('env','aws_rds_db_username') }}"
+    aws_rds_db_user_password: "{{ lookup('env','aws_rds_db_user_password') }}"
+
+- name: Create VPC security group for RDS instance
+  ec2_group:
+    name: "{{ project.name }}-{{ project.environment }}-rds"
+    description: "SG for {{ project.name }}-{{ project.environment }} RDS instance"
+    vpc_id: "{{ vpc.vpc.id }}"
+    region: "{{ aws.region }}"
+    tags: {'Project': '{{ project.name }}','Environment': '{{ project.environment }}'}
+    rules:
+      - proto: tcp
+        ports:
+        - 3306 # MySQL
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow MySQL connection from any
+      - proto: icmp
+        from_port: -1
+        to_port:  -1
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow ICMP from any
+  register: rds_group
+
+- name: Create RDS subnet group
+  rds_subnet_group:
+    region: "{{ aws.region }}"
+    state: present
+    name: "{{ project.name }}-{{ project.environment }}"
+    description: "Subnet group for {{ project.name }}-{{ project.environment }}"
+    subnets:
+      - "{{ subnet_a.subnet.id }}"
+      - "{{ subnet_b.subnet.id }}"
+      - "{{ subnet_c.subnet.id }}"
+  register: rds_subnet_group
+
+- name: Create RDS parameter group
+  rds_param_group:
+    region: "{{ aws.region }}"
+    state: present
+    name: '{{ project.name }}-{{ project.environment }}-{{ aws.rds.parameter_group_family | regex_replace("\.") }}'
+    description: "Parameter group for {{ project.name }}-{{ project.environment }} - {{ aws.rds.parameter_group_family }}"
+    engine: "{{ aws.rds.parameter_group_family }}"
+    tags:
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: rds_parameter_group
+
+- name: Create RDS instance
+  rds_instance:
+    engine: "{{ aws.rds.instance.db.engine }}"
+    engine_version: "{{ aws.rds.instance.db.engine_version }}"
+    db_instance_identifier: "{{ project.name }}-{{ project.environment }}"
+    db_instance_class: "{{ aws.rds.instance.type }}"
+    db_parameter_group_name: "{{ rds_parameter_group.db_parameter_group_name }}"
+    db_subnet_group_name: "{{ rds_subnet_group.subnet_group.name }}"
+    storage_type: "{{ aws.rds.instance.storage_type }}"
+    allocated_storage: "{{ aws.rds.instance.allocated_storage }}"
+    auto_minor_version_upgrade: yes
+    backup_retention_period: "{{ aws.rds.instance.backup_retention_period }}"
+    master_username: "{{ aws_rds_master_username }}"
+    master_user_password: "{{ aws_rds_master_user_password }}"
+    publicly_accessible: yes
+    port: "{{ aws.rds.instance.port }}"
+    region: "{{ aws.region }}"
+    availability_zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+    skip_final_snapshot: yes
+    vpc_security_group_ids: "{{ rds_group.group_id }}"
+    state: present
+    wait: yes
+    tags:
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+    copy_tags_to_snapshot: yes
+  register: rds_instance
+
+- name: Create RDS database
+  mysql_db:
+    login_host: "{{ rds_instance.endpoint.address }}"
+    login_port: "{{ aws.rds.instance.port }}"
+    login_user: "{{ aws_rds_master_username }}"
+    login_password: "{{ aws_rds_master_user_password }}"
+    name: "{{ aws_rds_db_name }}"
+    state: present
+
+- name: Create RDS database user
+  mysql_user:
+    login_host: "{{ rds_instance.endpoint.address }}"
+    login_port: "{{ aws.rds.instance.port }}"
+    login_user: "{{ aws_rds_master_username }}"
+    login_password: "{{ aws_rds_master_user_password }}"
+    name: "{{ aws_rds_db_username }}"
+    password: "{{ aws_rds_db_user_password }}"
+    host: '%'
+    priv: '{{ aws_rds_db_name }}.*:ALL'
+    state: present
+
+- name: Show RDS instance endpoint
+  debug:
+    msg: " RDS instance endpoint is: {{ rds_instance.endpoint.address }}"
+

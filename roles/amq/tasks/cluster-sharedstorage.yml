@@ -1,0 +1,19 @@
+---
+# Shared Storage cluster
+- name: Create AMQ data directory on shared storage
+  file:
+    state: directory
+    path: "{{ amq.sharedstorage.folder }}/{{ amq.sharedstorage.data_folder }}"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0755
+  become: true
+
+- name: Create AMQ data directory for sheduled messages on shared storage
+  file:
+    state: directory
+    path: "{{ amq.sharedstorage.folder }}/{{ amq.sharedstorage.scheduler_data_folder }}"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0755
+  become: true

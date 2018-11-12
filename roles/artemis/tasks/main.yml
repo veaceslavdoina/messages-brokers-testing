@@ -1,0 +1,181 @@
+---
+#
+# I N S T A L L A T I O N
+#
+- name: Create group for Artemis
+  group:
+    name: "{{ artemis.group }}"
+    state: present
+  become: true
+
+- name: Create user for Artemis
+  user:
+    name: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+    shell: /bin/bash
+    home: "{{ install_folder }}/{{ artemis.symlink }}"
+    create_home: no
+    comment: Artemis
+  become: true
+
+- name: Create directory for Artemis
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ artemis.folder }}"
+    owner: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+    mode: 0755
+  become: true
+
+- name: Veirfy if Artemis local archive exists
+  stat:
+    path: "{{ role_path }}/files/{{ artemis.archive }}"
+  delegate_to: localhost
+  register: artemis_check_local_archive
+
+- name: Copy Artemis archive which is placed locally if it exists
+  copy:
+    src: "{{ artemis.archive }}"
+    dest: "{{ install_folder }}"
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when: artemis_check_local_archive.stat.exists
+  register: artemis_copy_local_archive
+
+- name: Verify if Artemis archive already exists on the host
+  stat:
+    path: "{{ install_folder }}/{{ artemis.archive }}"
+  when: not artemis_check_local_archive.stat.exists
+  register: artemis_check_archive
+
+- name: Download Artemis archive if it doesn't exist
+  get_url:
+    url: "{{ artemis.url }}/{{ artemis.archive }}"
+    dest: "{{ install_folder }}"
+    validate_certs: yes
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when:
+    - not artemis_check_local_archive.stat.exists
+    - artemis_check_archive.stat.isreg is not defined
+
+- name: Verify if Artemis archive was already unpacked
+  find:
+    paths: "{{ install_folder }}/{{ artemis.folder }}"
+    recurse: yes
+    patterns: "*"
+  register: artemis_folder_content
+
+- name: Unpack Artemis archive if destination folder is empty
+  unarchive:
+    src: "{{ install_folder }}/{{ artemis.archive }}"
+    dest: "{{ install_folder }}/{{ artemis.folder }}"
+    owner: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+    remote_src: yes
+    extra_opts: ['--strip-components=1']
+  become: true
+  when: artemis_folder_content.matched == 0
+
+- name: Fix Artemis sub-folders permissions
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ artemis.folder }}"
+    recurse: yes
+    owner: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+  become: true
+
+- name: Create Artemis symlink
+  file:
+    src: "{{ install_folder }}/{{ artemis.folder }}"
+    path: "{{ install_folder }}/{{ artemis.symlink }}"
+    state: link
+    owner: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+  become: true
+  register: artemis_symlink
+
+- name: Copy Artemis systemd service file
+  template:
+    src: "{{ artemis.service }}.service.j2"
+    dest: /etc/systemd/system/{{ artemis.service }}.service
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+  register: artemis_service_file
+
+- name: Force systemd to read changes when Artemis service config was updated
+  systemd:
+    daemon_reload: yes
+  become: true
+  when: artemis_service_file.changed == true
+  register: systemd
+
+- name: Enable Artemis service
+  systemd:
+    name: "{{ artemis.service }}"
+    enabled: yes
+  become: true
+
+#
+# C O N F I G U R A T I O N
+#
+- name: Register variables for Artemis Web console credentials
+  set_fact:
+    artemis_admin_name: "{{ lookup('env','artemis_admin_name') }}"
+    artemis_admin_password: "{{ lookup('env','artemis_admin_password') }}"
+
+- name: Verify if Artemis broker folder is empty
+  find:
+    paths: "{{ install_folder }}/{{ artemis.broker_name }}"
+    recurse: yes
+    patterns: "*"
+  register: artemis_broker_folder_content
+
+- name: Create Artemis broker if it doesn't exist
+  shell: "export PATH=$PATH:{{ install_folder }}/{{ java.symlink }}/bin; {{ install_folder }}/{{ artemis.symlink }}/bin/artemis create --allow-anonymous --http-host 0.0.0.0 --user {{ artemis_admin_name }} --password {{ artemis_admin_password }} {{ install_folder }}/{{ artemis.broker_name }}"
+  become: true
+  when: artemis_broker_folder_content.matched == 0
+
+- name: Set Artemis broker folder permissions
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ artemis.broker_name }}"
+    recurse: yes
+    owner: "{{ artemis.username }}"
+    group: "{{ artemis.group }}"
+  become: true
+
+- name: Change ARTEMIS_HOME for Artemis broker
+  lineinfile:
+    path: "{{ install_folder }}/{{ artemis.broker_name }}/etc/artemis.profile"
+    line: ARTEMIS_HOME='{{ install_folder }}/{{ artemis.symlink }}'
+    regexp: '^ARTEMIS_HOME=.*$'
+    state: present
+  become: true
+
+- name: Change JAVA_ARGS for Artemis broker
+  replace:
+    path: "{{ install_folder }}/{{ artemis.broker_name }}/etc/artemis.profile"
+    regexp: '-Xms.* -Xmx[^\s]+'
+    replace: '{{ artemis.opts }}'
+  become: true
+
+- name: Change Jolokia access for Artemis broker
+  replace:
+    path: "{{ install_folder }}/{{ artemis.broker_name }}/etc/jolokia-access.xml"
+    regexp: '\<allow-origin\>.*\<\/allow-origin\>'
+    replace: '<allow-origin>*</allow-origin>'
+  become: true
+
+- name: Start Artemis service
+  systemd:
+    name: "{{ artemis.service }}"
+    state: started
+  become: true

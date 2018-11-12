@@ -1,0 +1,23 @@
+[Unit]
+Description=Artemis service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=forking
+ExecStart={{ install_folder }}/{{ artemis.broker_name }}/bin/artemis-service start
+ExecStop={{ install_folder }}/{{ artemis.broker_name }}/bin/artemis-service stop
+ExecReload={{ install_folder }}/{{ artemis.broker_name }}/bin/artemis-service restart
+PIDFile={{ install_folder }}/{{ artemis.broker_name }}/data/artemis.pid
+User={{ artemis.username }}
+Group={{ artemis.group }}
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier={{ artemis.service }}
+Environment="JAVA_HOME={{ install_folder }}/{{ java.symlink }}"
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

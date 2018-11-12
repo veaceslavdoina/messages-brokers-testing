@@ -1,0 +1,43 @@
+---
+# Install Erlang and RabbitMQ on RHEL based OS
+- name: Add Bintray yum repository for RabbitMQ Erlang
+  yum_repository:
+    name: rabbitmq-erlang
+    description: rabbitmq-erlang
+    file: rabbitmq-erlang
+    baseurl: https://dl.bintray.com/rabbitmq/rpm/erlang/21/el/7
+    gpgcheck: yes
+    gpgkey: https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+    repo_gpgcheck: no
+    enabled: yes
+  become: true
+
+- name: Import RabbitMQ signing key
+  rpm_key:
+    state: present
+    key: https://github.com/rabbitmq/signing-keys/releases/download/2.0/rabbitmq-release-signing-key.asc
+  become: true
+
+- name: Add Bintray yum repository for RabbitMQ
+  yum_repository:
+    name: bintray-rabbitmq-rpm
+    description: bintray-rabbitmq-rpm
+    file: rabbitmq
+    baseurl: https://dl.bintray.com/rabbitmq/rpm/rabbitmq-server/v3.7.x/el/7/
+    gpgcheck: no
+    gpgkey: https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+    repo_gpgcheck: no
+    enabled: yes
+  become: true
+
+- name: Install Erlang
+  yum:
+    name: "{{ rmq.erlang.rhel_version }}"
+    state: present
+  become: true
+
+- name: Install RabbitMQ
+  yum:
+    name: "{{ rmq.rhel_version }}"
+    state: present
+  become: true

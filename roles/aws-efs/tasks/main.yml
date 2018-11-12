@@ -1,0 +1,42 @@
+---
+# Create AWS EFS environment
+- name: Create VPC security group for EFS
+  ec2_group:
+    name: "{{ project.name }}-{{ project.environment }}-efs"
+    description: "SG for {{ project.name }}-{{ project.environment }} EFS"
+    vpc_id: "{{ vpc.vpc.id }}"
+    region: "{{ aws.region }}"
+    tags: {'Project': '{{ project.name }}','Environment': '{{ project.environment }}'}
+    rules:
+      - proto: tcp
+        ports:
+        - 2049 # EFS
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow EFS connection from any
+      - proto: icmp
+        from_port: -1
+        to_port:  -1
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow ICMP from any
+  register: efs_group
+
+- name: Create EFS
+  efs:
+    name: "{{ project.name }}-{{ project.environment }}"
+    performance_mode: general_purpose
+    state: present
+    tags:
+      Name: "{{ project.name }}-{{ project.environment }}"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+    targets:
+      - subnet_id: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.id }}"
+        security_groups: "[ \"{{ efs_group.group_id }}\" ]"
+    wait: yes
+    wait_timeout: 600
+  register: efs
+
+- name: Show EFS file system ID
+  debug:
+    msg: "EFS file system ID is: {{ item }}"
+  with_items: "{{ efs | json_query('efs.mount_targets[].file_system_id') }}"

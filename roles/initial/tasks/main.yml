@@ -1,0 +1,11 @@
+---
+# Install python2 for Ansible on remote system
+- name: Get remote system distribution name
+  raw: bash -c "hostnamectl | awk -F ':' '/Operating System/ {print \$2}'"
+  changed_when: false
+  register: distribution
+
+- name: Install python2 for Ansible on Ubuntu if it not installed
+  raw: bash -c "test -e /usr/bin/python || (apt -y update && apt install -y python-minimal python-setuptools python-simplejson)"
+  when: distribution.stdout is search("Ubuntu")
+  become: true

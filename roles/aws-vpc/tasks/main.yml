@@ -1,0 +1,82 @@
+---
+# Create AWS VPC environment
+- name: Create a VPC
+  ec2_vpc_net:
+    region: "{{ aws.region }}"
+    name: "{{ project.name }}-{{ project.environment }}"
+    cidr_block: "{{ aws.vpc.cidr_block }}"
+    dns_hostnames: yes
+    dns_support: yes
+    tags:
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: vpc
+
+- name: Create VPC subnet in AZ a
+  ec2_vpc_subnet:
+    region: "{{ aws.region }}"
+    az: "{{ aws.region }}a"
+    state: present
+    vpc_id: "{{ vpc.vpc.id }}"
+    cidr: "{{ aws.vpc.subnet.a_cidr }}"
+    resource_tags:
+      Name: "{{ project.name }}-{{ project.environment }}-a"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: subnet_a
+
+- name: Create VPC subnet in AZ b
+  ec2_vpc_subnet:
+    region: "{{ aws.region }}"
+    az: "{{ aws.region }}b"
+    state: present
+    vpc_id: "{{ vpc.vpc.id }}"
+    cidr: "{{ aws.vpc.subnet.b_cidr }}"
+    resource_tags:
+      Name: "{{ project.name }}-{{ project.environment }}-b"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: subnet_b
+
+- name: Create VPC subnet in AZ c
+  ec2_vpc_subnet:
+    region: "{{ aws.region }}"
+    az: "{{ aws.region }}c"
+    state: present
+    vpc_id: "{{ vpc.vpc.id }}"
+    cidr: "{{ aws.vpc.subnet.c_cidr }}"
+    resource_tags:
+      Name: "{{ project.name }}-{{ project.environment }}-c"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: subnet_c
+
+- name: Create Internet Gateway in the VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc.vpc.id }}"
+    state: present
+    tags:
+      Name: "{{ project.name }}-{{ project.environment }}"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+  register: igw
+
+- name: Get facts about routing tables in the VPC
+  ec2_vpc_route_table_facts:
+    filters:
+      vpc-id: "{{ vpc.vpc.id }}"
+  register: routing_table
+
+- name: Set default route for VPC via Internet Gateway
+  ec2_vpc_route_table:
+    region: "{{ aws.region }}"
+    vpc_id: "{{ vpc.vpc.id }}"
+    route_table_id: "{{ routing_table.route_tables[0].id }}"
+    lookup: id
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw.gateway_id }}"
+    tags:
+      Name: "{{ project.name }}-{{ project.environment }}"
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"

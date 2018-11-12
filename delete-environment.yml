@@ -1,0 +1,9 @@
+---
+# Delete cloud environment
+- name: Delete cloud environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: aws-delete
+

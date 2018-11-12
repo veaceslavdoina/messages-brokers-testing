@@ -1,0 +1,61 @@
+---
+#
+# I N S T A L L A T I O N
+#
+- name: Stop RMQ
+  include: stop-rmq.yml
+
+- name: Install Erlang and RabbitMQ on RHEL based OS
+  include: install_rhel.yml
+  when: ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
+- name: Install Erlang and RabbitMQ on Deb based OS
+  include: install_deb.yml
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Register RMQ as systemd service
+  systemd:
+    name: "{{ rmq.service }}"
+    enabled: yes
+  become: true
+
+- name: Remove guest user localhost-only login restriction
+  lineinfile:
+    dest: "/etc/rabbitmq/rabbitmq.conf"
+    line: "loopback_users = none"
+    state: present
+    create: yes
+  become: yes
+#  tags: [ 'never' ]
+
+- name: Start RMQ service
+  systemd:
+    name: "{{ rmq.service }}"
+    state: started
+  become: true
+
+#
+# C O N F I G U R A T I O N
+#
+- name: Register variables for RMQ user credentials
+  set_fact:
+    rmq_admin_name: "{{ lookup('env','rmq_admin_name') }}"
+    rmq_admin_password: "{{ lookup('env','rmq_admin_password') }}"
+
+- name: Enables the RMQ rabbitmq_management plugin
+  rabbitmq_plugin:
+    names: rabbitmq_management
+    state: enabled
+  become: true
+
+- name: Add admin user to the RMQ
+  rabbitmq_user:
+    user: "{{ rmq_admin_name }}"
+    password: "{{ rmq_admin_password }}"
+    vhost: /
+    configure_priv: .*
+    read_priv: .*
+    write_priv: .*
+    state: present
+    tags: "administrator"
+  become: true

@@ -1,0 +1,132 @@
+---
+# Environment provisioning
+
+# Project related variables
+project:
+  name: messages-brokers-testing
+  environment: test
+  scope: primary
+  provision:   # yes/no
+    vm: yes    # VM
+    vt: yes    # VM for tools like producer and consumer
+    db: no     # DB
+    fs: no     # NFS
+
+# AWS variables
+aws:
+  # AWS global variables
+  region: eu-central-1 # eu-west-1 /us-east-1
+
+  # AWS VPC variables
+  vpc:
+    cidr_block: 10.0.0.0/16
+    subnet:
+      a_cidr: 10.0.10.0/24
+      b_cidr: 10.0.20.0/24
+      c_cidr: 10.0.30.0/24
+
+  # AWS EC2 instances variables
+  ec2:
+    instance:
+      count: 1
+      zone: c             # a/b/c
+      type: m5.large      # t3.nano/t3.micro/t3.small/t3.medium/t3.large/m5.large
+      os: CentOS          # CentOS/Ubuntu
+      volume_size: 15     # GB
+      prefix: broker
+      centos_user: centos
+      ubuntu_user: ubuntu
+      vt:
+        scope: secondary
+        list:
+          a:
+            name: producer
+            type: t3.large
+#          b:
+#            name: consumer
+#            type: t3.nano
+
+    # Inventory related variables
+    inventory:
+      file: hosts
+      group_vm: brokers
+      group_vt: tools
+
+  # AWS RDS variables
+  rds:
+    instance:
+      db:
+        engine: mysql
+        engine_version: 5.6.41
+      type: db.t2.micro
+      port: 3306
+      storage_type: standard
+      allocated_storage: 20
+      backup_retention_period: 0
+    parameter_group_family: mysql5.6
+
+
+# Brokers installation
+
+# Global variables
+install_folder: /opt
+
+mom: amq # amq/artemis/rmq
+
+# Java variables
+java:
+  url: http://download.oracle.com/otn-pub/java/jdk/8u192-b12/750e1c8617c5452694857ad95c3ee230
+  archive: jdk-8u192-linux-x64.tar.gz
+  folder: jdk1.8.0_192
+  symlink: java
+  ttl: 60
+
+# ActiveMQ variables
+amq:
+  url: http://archive.apache.org/dist/activemq/5.15.7
+  archive: apache-activemq-5.15.7-bin.tar.gz
+  folder: apache-activemq-5.15.7
+  symlink: activemq
+  username: activemq
+  group: activemq
+  process: activemq
+  service: activemq
+  opts: -Xms7G -Xmx7G
+  mode: standalone       # standalone/cluster
+  cluster:               # jdbc/sharedstorage
+    type: jdbc
+  jdbc:
+    driver:
+      mysql:
+        url: https://dev.mysql.com/get/Downloads/Connector-J
+        archive: mysql-connector-java-8.0.13.tar.gz
+        folder: mysql-connector-java-8.0.13
+  sharedstorage:
+    folder: /efs
+    data_folder: activemq-data
+    scheduler_data_folder: activemq-data-scheduler
+
+# Artemis variables
+artemis:
+  url: http://archive.apache.org/dist/activemq/activemq-artemis/2.6.3/
+  archive: apache-artemis-2.6.3-bin.tar.gz
+  folder: apache-artemis-2.6.3
+  symlink: artemis
+  username: artemis
+  group: artemis
+  process: artemis
+  service: artemis
+  broker_name: artemis-broker1
+  opts: -Xms7G -Xmx7G
+  mode: standalone       # standalone/cluster
+  cluster:               # replication/sharedstorage
+    type: replication
+
+rmq:
+  erlang:
+    rhel_version: erlang-21.1.1-1.el7.centos
+    deb_version: erlang=1:21.1.1-1
+  rhel_version: rabbitmq-server-3.7.8-1.el7.noarch
+  deb_version: rabbitmq-server=3.7.8-1
+  process: rabbitmq_server
+  service: rabbitmq-server

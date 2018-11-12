@@ -1,0 +1,37 @@
+---
+# Install Erlang and RabbitMQ on DEB based OS
+- name: Import RabbitMQ signing key
+  apt_key:
+    url: https://github.com/rabbitmq/signing-keys/releases/download/2.0/rabbitmq-release-signing-key.asc
+    state: present
+  become: true
+
+- name: Add Bintray deb repository for RabbitMQ Erlang
+  apt_repository:
+    repo: "deb http://dl.bintray.com/rabbitmq/debian {{ ansible_distribution_release }} erlang"
+    state: present
+    filename: bintray.erlang
+    validate_certs: yes
+  become: true
+
+- name: Add Bintray deb repository for RabbitMQ
+  apt_repository:
+    repo: "deb http://dl.bintray.com/rabbitmq/debian {{ ansible_distribution_release }} main"
+    state: present
+    filename: bintray.rabbitmq
+    validate_certs: yes
+  become: true
+
+- name: Install Erlang
+  apt:
+    name: "{{ rmq.erlang.deb_version }}"
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Install RabbitMQ
+  apt:
+    name: "{{ rmq.deb_version }}"
+    state: present
+    update_cache: yes
+  become: true

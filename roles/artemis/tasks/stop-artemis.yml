@@ -1,0 +1,20 @@
+---
+# Stop Artemis
+- name: Get Artemis process PID
+  shell: "ps -eo pid,cmd | awk '/{{ artemis.process }}/ && ! /awk/ {print $1}'"
+  register: artemis_process_pid
+
+- name: Stop Artemis service if it is running
+  systemd:
+    name: "{{ artemis.service }}"
+    state: stopped
+  become: true
+  ignore_errors: true
+  when: artemis_process_pid.stdout != ""
+  register: artemis_systemd_stop
+
+- name: Stop Artemis using kill if it is running and previous etempt failed
+  shell: "kill -9 {{ artemis_process_pid.stdout }}"
+  ignore_errors: true
+  when: artemis_process_pid.stdout != "" and artemis_systemd_stop.changed == false
+  become: true

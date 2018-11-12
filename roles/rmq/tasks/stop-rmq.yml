@@ -1,0 +1,20 @@
+---
+# STOP RMQ
+- name: Get RMQ process PID
+  shell: "ps -eo pid,cmd | awk '/{{ rmq.process }}/ && ! /awk/ {print $1}'"
+  register: rmq_process_pid
+
+- name: Stop rmq service if it is running
+  systemd:
+    name: "{{ rmq.service }}"
+    state: stopped
+  become: true
+  ignore_errors: true
+  when: rmq_process_pid.stdout != ""
+  register: rmq_systemd_stop
+
+- name: Stop RMQ using kill if it is running and previous etempt failed
+  shell: "kill -9 {{ rmq_process_pid.stdout }}"
+  ignore_errors: true
+  when: rmq_process_pid.stdout != "" and rmq_systemd_stop.changed == false
+  become: true

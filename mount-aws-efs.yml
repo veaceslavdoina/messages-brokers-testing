@@ -1,0 +1,15 @@
+---
+# Mount Amazon EFS
+- name: Initial host configuration
+  hosts: '{{ target | default("brokers") }}'
+  gather_facts: false
+  roles:
+    - role: initial
+
+- name: Mount Amazon EFS
+  hosts: '{{ target | default("brokers") }}'
+  tasks:
+    - name:
+      import_role:
+        name: "aws-efs"
+        tasks_from: mount

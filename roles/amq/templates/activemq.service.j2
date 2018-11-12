@@ -1,0 +1,22 @@
+[Unit]
+Description=ActiveMQ service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=forking
+ExecStart={{ install_folder }}/{{ amq.symlink }}/bin/activemq start
+ExecStop={{ install_folder }}/{{ amq.symlink }}/bin/activemq stop
+User={{ amq.username }}
+Group={{ amq.group }}
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=activemq
+Environment="JAVA_HOME={{ install_folder }}/{{ java.symlink }}"
+Environment="ACTIVEMQ_OPTS={{ amq.opts }}"
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

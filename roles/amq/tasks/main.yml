@@ -1,0 +1,172 @@
+---
+#
+# I N S T A L L A T I O N
+#
+- name: Create group for AMQ
+  group:
+    name: "{{ amq.group }}"
+    state: present
+  become: true
+
+- name: Create user for AMQ
+  user:
+    name: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    shell: /bin/bash
+    home: "{{ install_folder }}/{{ amq.symlink }}"
+    create_home: no
+    comment: ActiveMQ
+  become: true
+
+- name: Create directory for AMQ
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ amq.folder }}"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0755
+  become: true
+
+- name: Veirfy if AMQ local archive exists
+  stat:
+    path: "{{ role_path }}/files/{{ amq.archive }}"
+  delegate_to: localhost
+  register: amq_check_local_archive
+
+- name: Copy AMQ archive which is placed locally if it exists
+  copy:
+    src: "{{ amq.archive }}"
+    dest: "{{ install_folder }}"
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when: amq_check_local_archive.stat.exists
+  register: amq_copy_local_archive
+
+- name: Verify if AMQ archive already exists on the host
+  stat:
+    path: "{{ install_folder }}/{{ amq.archive }}"
+  when: not amq_check_local_archive.stat.exists
+  register: amq_check_archive
+
+- name: Download AMQ archive if it doesn't exist
+  get_url:
+    url: "{{ amq.url }}/{{ amq.archive }}"
+    dest: "{{ install_folder }}"
+    validate_certs: yes
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when:
+    - not amq_check_local_archive.stat.exists
+    - amq_check_archive.stat.isreg is not defined
+
+- name: Verify if AMQ archive was already unpacked
+  find:
+    paths: "{{ install_folder }}/{{ amq.folder }}"
+    recurse: yes
+    patterns: "*"
+  register: amq_folder_content
+
+- name: Unpack AMQ archive if destination folder is empty
+  unarchive:
+    src: "{{ install_folder }}/{{ amq.archive }}"
+    dest: "{{ install_folder }}/{{ amq.folder }}"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    remote_src: yes
+    extra_opts: ['--strip-components=1']
+  become: true
+  when: amq_folder_content.matched == 0
+
+- name: Fix AMQ sub-folders permissions
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ amq.folder }}"
+    recurse: yes
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+  become: true
+
+- name: Create AMQ symlink
+  file:
+    src: "{{ install_folder }}/{{ amq.folder }}"
+    path: "{{ install_folder }}/{{ amq.symlink }}"
+    state: link
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+  become: true
+
+- name: Copy AMQ systemd service file
+  template:
+    src: "{{ amq.service }}.service.j2"
+    dest: /etc/systemd/system/{{ amq.service }}.service
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+  register: amq_service_file
+
+- name: Force systemd to read changes when AMQ service config was updated
+  systemd:
+    daemon_reload: yes
+  become: true
+  when: amq_service_file.changed == true
+  register: systemd
+
+- name: Enable AMQ service
+  systemd:
+    name: "{{ amq.service }}"
+    enabled: yes
+  become: true
+
+#
+# C O N F I G U R A T I O N
+#
+- name: Register variables for AMQ JDBC cluster
+  set_fact:
+    amq_cluster_jdbc_url: "{{ lookup('env','amq_cluster_jdbc_url') }}"
+    amq_cluster_jdbc_db: "{{ lookup('env','amq_clister_jdbc_db') }}"
+    amq_cluster_jdbc_username: "{{ lookup('env','amq_cluster_jdbc_username') }}"
+    amq_cluster_jdbc_password: "{{ lookup('env','amq_cluster_jdbc_password') }}"
+  when: amq.mode == 'cluster' and amq.cluster.type == 'jdbc'
+
+- name: Register variables for AMQ Web console credentials
+  set_fact:
+    amq_admin_password: "{{ lookup('env','amq_admin_password') }}"
+    amq_user_password: "{{ lookup('env','amq_user_password') }}"
+
+- name: Copy AMQ main configuration file
+  template:
+    src: "{% if amq.mode == 'standalone'%}activemq.xml-{{ amq.mode }}.j2{% elif amq.mode == 'cluster'%}activemq.xml-{{ amq.mode }}-{{amq.cluster.type}}.j2{% endif %}"
+    dest: "{{ install_folder }}/{{ amq.symlink }}/conf/activemq.xml"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0644
+  become: true
+
+- name: Copy AMQ Web console access configuration file
+  template:
+    src: "jetty-realm.properties.j2"
+    dest: "{{ install_folder }}/{{ amq.symlink }}/conf/jetty-realm.properties"
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0644
+  become: true
+  when: amq_admin_password or amq_user_password
+
+- name: Include AMQ JDBC cluster related tasks
+  include_tasks: cluster-jdbc.yml
+  when: amq.mode == 'cluster' and amq.cluster.type == 'jdbc'
+
+- name: Include AMQ Shared Storage cluster related tasks
+  include_tasks: cluster-sharedstorage.yml
+  when: amq.mode == 'cluster' and amq.cluster.type == 'sharedstorage'
+
+- name: Start AMQ service
+  systemd:
+    name: "{{ amq.service }}"
+    state: started
+  become: true

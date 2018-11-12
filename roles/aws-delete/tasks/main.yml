@@ -1,0 +1,148 @@
+---
+# Delete AWS EFS environment
+
+# EC2 resources
+- name: Get facts about running EC2 instances
+  ec2_instance_facts:
+    region: "{{ aws.region }}"
+    filters:
+      availability-zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+      instance-state-name: [running, pending, shutting-down, stopping, stopped]
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+  register: ec2
+  when: project.provision.vm or project.provision.vt
+
+- name: Terminate EC2 instances
+  ec2:
+    instance_ids: "{{ item }}"
+    state: absent
+    wait: yes
+  with_items: "{{ ec2 | json_query('instances[].instance_id') }}"
+  when: project.provision.vm or project.provision.vt
+
+- name: Delete EC2 key pair
+  ec2_key:
+    region: "{{ aws.region }}"
+    name: "{{ project.name }}-{{ project.environment }}"
+    state: absent
+  register: ec2_key_result
+  when: project.provision.vm or project.provision.vt
+
+- name: Delete locally saved key pair private key
+  file:
+    path: "{{ project.name }}-{{ project.environment }}.pem"
+    state: absent
+  when: ec2_key_result.changed
+
+- name: Delete inventory file
+  file:
+    path: "{{ playbook_dir }}/{{ aws.ec2.inventory.file }}"
+    state: absent
+
+- name: Get facts about VPC
+  ec2_vpc_net_facts:
+    region: "{{ aws.region }}"
+    filters:
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+  register: vpc
+
+- name: Set VPC ID variable
+  set_fact:
+    vpc_id: "{{ vpc | json_query('vpcs[0].id') }}"
+
+# RDS resources
+- name: Terminate RDS instance without a final snapshot
+  rds_instance:
+    region: "{{ aws.region }}"
+    db_instance_identifier: "{{ project.name }}-{{ project.environment }}"
+    state: absent
+    skip_final_snapshot: true
+    wait: yes
+  when: project.provision.db
+
+- name: Delete RDS subnet group
+  rds_subnet_group:
+    region: "{{ aws.region }}"
+    state: absent
+    name: "{{ project.name }}-{{ project.environment }}"
+  when: project.provision.db
+
+- name: Delete RDS parameter group
+  rds_param_group:
+    region: "{{ aws.region }}"
+    state: absent
+    name: '{{ project.name }}-{{ project.environment }}-{{ aws.rds.parameter_group_family | regex_replace("\.") }}'
+  when: project.provision.db
+
+# EFS resources
+- name: Get facts about EFS
+  efs_facts:
+    region: "{{ aws.region }}"
+    name: "{{ project.name }}-{{ project.environment }}"
+    tags:
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+    targets:
+  register: efs
+  when: project.provision.fs
+
+- name: Delete EFS
+  efs:
+    id: "{{ item }}"
+    state: absent
+    wait: yes
+    wait_timeout: 600
+  with_items: "{{ efs | json_query('ansible_facts.efs[].mount_targets[].file_system_id') }}"
+  when: project.provision.fs
+
+# VPC resources
+- name: Get facts about all security groups in a VPC
+  ec2_group_facts:
+    region: "{{ aws.region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+  register: sg
+
+- name: Delete security groups
+  ec2_group:
+    group_id: "{{ item.group_id }}"
+    state: absent
+  with_items: "{{ sg | json_query('security_groups[]') }}"
+
+- name: Get facts about all subnets in a VPC
+  ec2_vpc_subnet_facts:
+    region: "{{ aws.region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+  register: subnets
+
+
+- name: Delete subnets
+  ec2_vpc_subnet:
+    region: "{{ aws.region }}"
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ item.cidr_block }}"
+    state: absent
+  with_items: "{{ subnets | json_query('subnets[]') }}"
+
+- name: Delete Internet Gateway from VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    state: absent
+
+- name: Remove VPC
+  ec2_vpc_net:
+    region: "{{ aws.region }}"
+    name: "{{ project.name }}-{{ project.environment }}"
+    cidr_block: "{{ aws.vpc.cidr_block }}"
+    tags:
+      Project: "{{ project.name }}"
+      Environment: "{{ project.environment }}"
+    state: absent
+

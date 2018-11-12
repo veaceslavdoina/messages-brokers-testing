@@ -1,0 +1,20 @@
+---
+# Stop AMQ
+- name: Get AMQ process PID
+  shell: "ps -eo pid,cmd | awk '/{{ amq.process }}/ && ! /awk/ {print $1}'"
+  register: amq_process_pid
+
+- name: Stop AMQ service if it is running
+  systemd:
+    name: "{{ amq.service }}"
+    state: stopped
+  become: true
+  ignore_errors: true
+  when: amq_process_pid.stdout != ""
+  register: amq_systemd_stop
+
+- name: Stop AMQ using kill if it is running and previous etempt failed
+  shell: "kill -9 {{ amq_process_pid.stdout }}"
+  ignore_errors: true
+  when: amq_process_pid.stdout != "" and amq_systemd_stop.changed == false
+  become: true

@@ -1,0 +1,36 @@
+---
+# Install Amazon EFS mount helper
+- name: Install amazon-efs-utils
+  yum:
+    name:
+    - git
+    - make
+    - rpm-build
+    state: present
+  become: true
+
+- name: Clone the amazon-efs-utils tool from GitHub
+  git:
+    repo: https://github.com/aws/efs-utils
+    dest: "{{ install_folder }}/efs-utils"
+  become: true
+
+- name: Build the amazon-efs-utils RPM package if it was not already builded
+  shell: make rpm
+  args:
+    chdir: "{{ install_folder }}/efs-utils/"
+    creates: "{{ install_folder }}/efs-utils/build/amazon-efs-utils*rpm"
+  become: yes
+
+- name: Finding builded amazon-efs-utils RPM package
+  find:
+    paths: "{{ install_folder }}/efs-utils/build"
+    patterns: "amazon-efs-utils*rpm"
+  register: rpm_file
+
+- name: Install the amazon-efs-utils RPM package
+  yum:
+     name: "{{ item.path }}"
+     state: present
+  become: true
+  with_items: "{{ rpm_file.files }}"

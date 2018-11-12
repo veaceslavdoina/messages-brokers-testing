@@ -1,0 +1,16 @@
+---
+# Install Message-oriented middleware system
+- name: Initial host configuration
+  hosts: '{{ target | default("brokers") }}'
+  gather_facts: false
+  roles:
+    - role: initial
+
+- name: Install Message-oriented middleware system
+  hosts: '{{ target | default("brokers") }}'
+  roles:
+    - role: common
+    - { role: java, when: mom == "amq" or mom == "artemis" }
+    - { role: amq, when: mom == "amq" }
+    - { role: artemis, when: mom == "artemis" }
+    - { role: rmq, when: mom == "rmq" }

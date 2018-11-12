@@ -1,0 +1,9 @@
+---
+# Sysctl entries
+- name: Maximum number of open files
+  sysctl:
+    name: fs.file-max
+    value: 65536
+    sysctl_set: yes
+    state: present
+    reload: yes

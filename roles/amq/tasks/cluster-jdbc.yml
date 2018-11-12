@@ -1,0 +1,83 @@
+---
+# AMQ JDBC Cluster
+- name: Create directory for MySQL JDBC driver
+  file:
+    state: directory
+    path: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.folder }}"
+    owner: "root"
+    group: "root"
+    mode: 0755
+  become: true
+
+- name: Veirfy if MySQL JDBC driver local archive exists
+  stat:
+    path: "{{ role_path }}/files/{{ amq.jdbc.driver.mysql.archive }}"
+  delegate_to: localhost
+  register: jdbc_check_local_archive
+
+- name: Copy MySQL JDBC driver archive which is placed locally if it exists
+  copy:
+    src: "{{ amq.jdbc.driver.mysql.archive }}"
+    dest: "{{ install_folder }}"
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when: jdbc_check_local_archive.stat.exists
+  register: jdbc_copy_local_archive
+
+- name: Verify if MySQL JDBC driver archive already exists on the host
+  stat:
+    path: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.archive }}"
+  when: not jdbc_check_local_archive.stat.exists
+  register: jdbc_check_archive
+
+- name: Download MySQL JDBC driver achive if it doesn't exist
+  get_url:
+    url: "{{ amq.jdbc.driver.mysql.url }}/{{ amq.jdbc.driver.mysql.archive }}"
+    dest: "{{ install_folder }}"
+    validate_certs: yes
+    owner: root
+    group: root
+    mode: 0664
+  become: true
+  when:
+    - not jdbc_check_local_archive.stat.exists
+    - jdbc_check_archive.stat.isreg is not defined
+
+- name: Verify if MySQL JDBC driver archive was already unpacked
+  find:
+    paths: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.folder }}"
+    recurse: yes
+    patterns: "*"
+  register: jdbc_folder_content
+
+- name: Unpack MySQL JDBC driver archive if destination folder is empty
+  unarchive:
+    src: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.archive }}"
+    dest: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.folder }}"
+    owner: "root"
+    group: "root"
+    remote_src: yes
+    extra_opts: ['--strip-components=1']
+  become: true
+  when: jdbc_folder_content.matched == 0
+
+- name: Find name of the MySQL JDBC driver jar file
+  find:
+    paths: "{{ install_folder }}/{{ amq.jdbc.driver.mysql.folder }}"
+    recurse: no
+    patterns: 'mysql-connector-java-*.jar'
+  register: jdbc_jar_file
+
+- name: Copy MySQL JDBC driver jar file to the AMQ appropriate folder
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ install_folder }}/{{ amq.folder }}/lib/optional"
+    remote_src: yes
+    owner: "{{ amq.username }}"
+    group: "{{ amq.group }}"
+    mode: 0644
+  with_items: "{{ jdbc_jar_file.files }}"
+  become: yes
+

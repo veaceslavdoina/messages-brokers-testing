@@ -1,0 +1,288 @@
+---
+# Create AWS EC2 environment
+- name: Create EC2 key pair
+  ec2_key:
+    region: "{{ aws.region }}"
+    name: "{{ project.name }}-{{ project.environment }}"
+  register: ec2_key_result
+
+- name: Save locally created key pair private key
+  copy: 
+    content: "{{ ec2_key_result.key.private_key }}"
+    dest: "{{ ec2_key_result.key.name }}.pem"
+    mode: 0600
+  when: ec2_key_result.changed
+
+- name: Create VPC security groups for VM
+  ec2_group:
+    name: "{{ aws.ec2.instance.prefix }}-{{ item }}"
+    description: "SG for {{ aws.ec2.instance.prefix }}-{{ item }}"
+    vpc_id: "{{ vpc.vpc.id }}"
+    region: "{{ aws.region }}"
+    tags: {'Project': '{{ project.name }}','Environment': '{{ project.environment }}','Scope': '{{ project.scope }}'}
+    rules:
+      - proto: tcp
+        ports:
+        - 22 # SSH
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow SSH connection from any hosts
+      - proto: tcp
+        ports:
+        - 8161  # AMQ/Artemis web console - HTTP
+        - 8162  # AMQ/Artemis/Amazon MQ web console - HTTPS
+        - 15672 # RabbitMQ management UI
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow MOM management connection from any hosts
+      - proto: tcp
+        ports:
+        - 1883  # Transport - MQTT
+        - 8883  # Transport - MQTT (Amazon MQ)
+        - 5671  # Transport - AMQP+SSL
+        - 5672  # Transport - AMQP
+        - 61222 # Transport - XMPP
+        - 61612 # Transport - Stomp+SSL
+        - 61613 # Transport - Stomp
+        - 61614 # Transport - Stomp+SSL (Amazon MQ)
+        - 61616 # Transport - TCP/NIO
+        - 61617 # Transport - TCP/NIO+SSL
+        - 61619 # Transport - WSS (Amazon MQ)
+        cidr_ip: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.cidr_block }}"
+        rule_desc: Allow MOM transport connection only from subnet
+      - proto: icmp
+        from_port: -1
+        to_port:  -1
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow ICMP from any hosts
+  with_sequence: count="{{ aws.ec2.instance.count }}"
+  when: project.provision.vm
+
+- name: Create VPC security groups for VT
+  ec2_group:
+    name: "{{ aws.ec2.instance.prefix }}-{{ item.value.name }}"
+    description: "SG for {{ aws.ec2.instance.prefix }}-{{ item.value.name }}"
+    vpc_id: "{{ vpc.vpc.id }}"
+    region: "{{ aws.region }}"
+    tags: {'Project': '{{ project.name }}','Environment': '{{ project.environment }}','Scope': '{{ aws.ec2.instance.vt.scope }}'}
+    rules:
+      - proto: tcp
+        ports:
+        - 22 # SSH
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow SSH connection from any hosts
+      - proto: icmp
+        from_port: -1
+        to_port:  -1
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow ICMP from any hosts
+  with_dict: "{{ aws.ec2.instance.vt.list }}"
+  when: project.provision.vt
+
+- name: Get facts about CentOS 7.x AMIs published by CentOS
+  ec2_ami_facts:
+    region: "{{ aws.region }}"
+    owners: aws-marketplace
+    filters:
+      product-code: "aw0evgkw8e5c1q413zgy5pjce"
+      virtualization-type: hvm
+  register: centos_7x_amis
+  when: aws.ec2.instance.os == "CentOS"
+
+- name: Get CentOS 7.x amis sorted by creation date
+  set_fact: 
+    sorted_centos_7x_amis: "{{ centos_7x_amis.images | sort(attribute='creation_date') }}"
+  when: aws.ec2.instance.os == "CentOS"
+
+- name: Get latest CentOS ami
+  set_fact:
+    centos_ami: "{{ sorted_centos_7x_amis | last }}"
+  when: aws.ec2.instance.os == "CentOS"
+
+- name: Get facts about Ubuntu 16.04 AMIs published by Canonical
+  ec2_ami_facts:
+    region: "{{ aws.region }}"
+    owners: 099720109477
+    filters:
+      name: "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"
+      virtualization-type: hvm
+  register: ubuntu_xenial_amis
+  when: aws.ec2.instance.os == "Ubuntu"
+
+- name: Get Ubuntu Xenial amis sorted by creation date
+  set_fact: 
+    sorted_ubuntu_xenial_amis: "{{ ubuntu_xenial_amis.images | sort(attribute='creation_date') }}"
+  when: aws.ec2.instance.os == "Ubuntu"
+
+- name: Get latest Ubuntu ami
+  set_fact:
+    ubuntu_ami: "{{ sorted_ubuntu_xenial_amis | last }}"
+  when: aws.ec2.instance.os == "Ubuntu"
+
+- name: Register AMI image variables
+  set_fact:
+   image_id: "{% if aws.ec2.instance.os == 'CentOS' %}{{ centos_ami.image_id }}{% elif aws.ec2.instance.os == 'Ubuntu' %}{{ ubuntu_ami.image_id }}{% endif %}"
+   image_user: "{% if aws.ec2.instance.os == 'CentOS' %}{{ aws.ec2.instance.centos_user }}{% elif aws.ec2.instance.os == 'Ubuntu' %}{{ aws.ec2.instance.ubuntu_user }}{% endif %}"
+
+- name: Get facts about VM instances in order to achieve idempotency
+  ec2_instance_facts:
+    region: "{{ aws.region }}"
+    filters:
+      availability-zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+      image-id: "{{ image_id }}"
+      instance-state-name: [pending, running, shutting-down, stopping, stopped]
+      key-name: "{{ ec2_key_result.key.name }}"
+      vpc-id: "{{ vpc.vpc.id }}"
+      subnet-id: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.id }}"
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+      "tag:Scope": "{{ project.scope }}"
+  when: project.provision.vm
+  register: ec2_vm_existing
+
+- name: Launch EC2 VM instances
+  ec2:
+    region: "{{ aws.region }}"
+    zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+    group: "{{ aws.ec2.instance.prefix }}-{{ item }}"
+    vpc_subnet_id: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.id }}"
+    assign_public_ip: yes
+    key_name: "{{ ec2_key_result.key.name }}"
+    instance_type: "{{ aws.ec2.instance.type }}"
+    image: "{{ image_id }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ aws.ec2.instance.volume_size }}"
+        delete_on_termination: true
+    user_data: |
+      #cloud-config
+      fqdn: "{{ aws.ec2.instance.prefix }}-{{ item }}"
+      hostname: "{{ aws.ec2.instance.prefix }}-{{ item }}.localdomain"
+      manage_etc_hosts: true
+      # Install additional packages
+      {% if aws.ec2.instance.os == 'CentOS' %}
+      bootcmd:
+       - yum install -y epel-release
+      packages:
+       - git
+       - screen
+       - htop
+      {% elif aws.ec2.instance.os == 'Ubuntu' %}
+      package_update: true
+      packages:
+       - git
+       - screen
+       - htop
+      {% endif %}
+    wait: yes
+    wait_timeout: 600
+    instance_tags:
+       Name: "{{ aws.ec2.instance.prefix }}-{{ item }}"
+       Project: "{{ project.name }}"
+       Environment: "{{ project.environment }}"
+       Scope: "{{ project.scope }}"
+  with_sequence: count="{{ aws.ec2.instance.count }}"
+  when: project.provision.vm and ec2_vm_existing | json_query('instances[].instance_id') | length < 1
+  register: ec2_vm
+
+- name: Get facts about VT instances in order to achieve idempotency
+  ec2_instance_facts:
+    region: "{{ aws.region }}"
+    filters:
+      availability-zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+      image-id: "{{ image_id }}"
+      instance-state-name: [pending, running, shutting-down, stopping, stopped]
+      key-name: "{{ ec2_key_result.key.name }}"
+      vpc-id: "{{ vpc.vpc.id }}"
+      subnet-id: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.id }}"
+      "tag:Project": "{{ project.name }}"
+      "tag:Environment": "{{ project.environment }}"
+      "tag:Scope": "{{ aws.ec2.instance.vt.scope }}"
+  when: project.provision.vt
+  register: ec2_vt_existing
+
+- name: Launch EC2 VT instances
+  ec2:
+    region: "{{ aws.region }}"
+    zone: "{{ aws.region }}{{ aws.ec2.instance.zone }}"
+    group: "{{ aws.ec2.instance.prefix }}-{{ item.value.name }}"
+    vpc_subnet_id: "{{ lookup('vars', 'subnet_' + aws.ec2.instance.zone).subnet.id }}"
+    assign_public_ip: yes
+    key_name: "{{ ec2_key_result.key.name }}"
+    instance_type: "{{ item.value.type }}"
+    image: "{{ image_id }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: 8
+        delete_on_termination: true
+    user_data: |
+      #cloud-config
+      # Configure hostname
+      fqdn: "{{ item.value.name }}"
+      hostname: "{{ item.value.name }}.localdomain"
+      manage_etc_hosts: true
+      # Install additional packages
+      {% if aws.ec2.instance.os == 'CentOS' %}
+      bootcmd:
+       - yum install -y epel-release
+      packages:
+       - java
+       - git
+       - screen
+       - lynx
+       - nc
+       - htop
+      {% elif aws.ec2.instance.os == 'Ubuntu' %}
+      package_update: true
+      packages:
+       - default-jre
+       - git
+       - screen
+       - lynx
+       - netcat
+       - htop
+      {% endif %}
+    wait: yes
+    wait_timeout: 600
+    instance_tags:
+       Name: "{{ item.value.name }}"
+       Project: "{{ project.name }}"
+       Environment: "{{ project.environment }}"
+       Scope: "{{ aws.ec2.instance.vt.scope }}"
+  with_dict: "{{ aws.ec2.instance.vt.list }}"
+  when: project.provision.vt and ec2_vt_existing | json_query('instances[].instance_id') | length < 1
+  register: ec2_vt
+
+- name: Create inventory file and add group for VM instances in it
+  lineinfile:
+    dest: "{{ playbook_dir }}/{{ aws.ec2.inventory.file }}"
+    line: "[{{ aws.ec2.inventory.group_vm }}]"
+    regexp: "{{ aws.ec2.inventory.group_vm }}"
+    state: present
+    create: yes
+  when: ec2_vm.changed
+
+- name: Fill inventory file with the newly created VM instances
+  lineinfile:
+    dest: "{{ playbook_dir }}/{{ aws.ec2.inventory.file }}"
+    insertafter: "[{{ aws.ec2.inventory.group_vm }}]"
+    line: "{{ item.tags['Name'] }}    ansible_host={{ item.public_ip }}    ansible_user={{ image_user }}    ansible_ssh_private_key_file={{ project.name }}-{{ project.environment }}.pem"
+  with_items: "{{ ec2_vm | json_query('results[].instances[]') }}"
+  when: ec2_vm.changed
+
+- name: Create inventory file and add group for VT instances in it
+  lineinfile:
+    dest: "{{ playbook_dir }}/{{ aws.ec2.inventory.file }}"
+    line: "[{{ aws.ec2.inventory.group_vt }}]"
+    regexp: "{{ aws.ec2.inventory.group_vt }}"
+    state: present
+    create: yes
+  when: ec2_vt.changed
+
+- name: Fill inventory file with the newly created VT instances
+  lineinfile:
+    dest: "{{ playbook_dir }}/{{ aws.ec2.inventory.file }}"
+    insertafter: "[{{ aws.ec2.inventory.group_vt }}]"
+    line: "{{ item.tags['Name'] }}    ansible_host={{ item.public_ip }}    ansible_user={{ image_user }}    ansible_ssh_private_key_file={{ project.name }}-{{ project.environment }}.pem"
+  with_items: "{{ ec2_vt | json_query('results[].instances[]') }}"
+  when: ec2_vt.changed
