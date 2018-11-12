@@ -389,3 +389,4 @@ done
  1. Apache ActiveMQ
     * [AMQ-5238 - Add JDBC Persistence for Scheduler](https://issues.apache.org/jira/browse/AMQ-5238)
     * [AMQ-6903 - Issue With Master and Slave Mode](https://issues.apache.org/jira/browse/AMQ-6903)
+    * [AMQ-7096 - ActiveMQ lose messages on broker restarts](https://issues.apache.org/jira/browse/AMQ-7096)
