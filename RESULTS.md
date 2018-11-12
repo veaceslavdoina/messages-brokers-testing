@@ -64,6 +64,7 @@
 ## Artemis
 
  1. [Test-Artemis-2.6.3-standalone-20181110-160908](#test-artemis-263-standalone-20181110-160908)
+ 2. [Test-Artemis-2.6.3-standalone-local-20181112-172958](#test-artemis-263-standalone-local-20181112-172958)
 
 
 ### Test-Artemis-2.6.3-standalone-20181110-160908
@@ -92,6 +93,36 @@
 | Max Produced Message Size     | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  |
 | Average Produced Message Size | 4,539 B  | 4,535 B  | 4,542 B  | 4,534 B  | 4,536 B  |
 | Min Produced Message Size     | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  |
+
+
+### Test-Artemis-2.6.3-standalone-local-20181112-172958
+
+ **Scenario 1** - Producer and then consumer
+
+| [Statistic](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports)              | [Test 1](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports/Report-20181112-172958-1.html)   | [Test 2](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports/Report-20181112-172958-2.html)   | [Test 3](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports/Report-20181112-172958-3.html)   | [Test 4](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports/Report-20181112-172958-4.html)   | [Test 5](results/Test-Artemis-2.6.3-standalone-local-20181112-172958/Reports/Report-20181112-172958-5.html)   |
+| ----------------------------- | -------- | -------- | -------- | -------- | -------- |
+| Test duration                 | 00:11:45 | 00:11:11 | 00:12:43 | 00:11:51 | 00:11:39 |
+| Producing duration            | 00:05:00 | 00:05:00 | 00:05:00 | 00:05:00 | 00:05:00 |
+| Produced with roll-back       | 484,479  | 538,971  | 580,061  | 568,133  | 530,461  |
+| Consumed with roll-back       | 484,516  | 538,952  | 580,477  | 568,370  | 530,760  |
+| Rolled-back produced          | 40       | 50       | 40       | 49       | 50       |
+| Rolled-back consumed          | 40       | 30       | 49       | 30       | 40       |
+| Messages produced             | 484,439  | 538,921  | 580,021  | 568,084  | 530,411  |
+| Messages consumed             | 484,476  | 538,922  | 580,428  | 568,340  | 530,720  |
+| Difference                    | -37      | -1       | -407     | -256     | -309     |
+| Lost messages                 | 8        | 0        | 5        | 0        | 2        |
+| Duplicate messages            | 44       | 0        | 411      | 255      | 310      |
+| Ghost messages                | 1        | 1        | 1        | 0        | 1        |
+| Alien messages                | 0        | 0        | 0        | 1        | 0        |
+| Undead messages               | 0        | 0        | 0        | 0        | 0        |
+| Messages remained             | 0        | 0        | 0        | 0        | 0        |
+| Messages in DLQ               | 0        | 0        | 0        | 0        | 0        |
+| Produced messages size        | 2,20 GB  | 2,44 GB  | 2,63 GB  | 2,58 GB  | 2,41 GB  |
+| Max Produced Message Size     | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  |
+| Average Produced Message Size | 4,541 B  | 4,536 B  | 4,540 B  | 4,535 B  | 4,540 B  |
+| Min Produced Message Size     | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  |
+
+ > Note: For this test a single instance for broker and producer/consumer was used. All communications were done using localhost.
 
 
 ## RabbitMQ
