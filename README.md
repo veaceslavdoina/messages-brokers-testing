@@ -11,7 +11,7 @@
     * [Copy the results](#copy-the-results)
     * [Delete environment](#delete-environment)
     * [Special note for Amazon MQ](#special-note-for-amazon-mq)
- 5. [Results](#Results)
+ 5. [Results](#results)
  6. [Issues](#issues)
 
 
