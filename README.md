@@ -85,7 +85,7 @@
 
 ### Testing tools
 
-Currently, as a primary tool for tests [JmsTools suite](https://github.com/erik-wramner/JmsTools) is used. You also may find other tools listed in the [Tools](#TOOLS.md).
+Currently, as a primary tool for tests [JmsTools suite](https://github.com/erik-wramner/JmsTools) is used. You also may find other tools listed in the [Tools](TOOLS.md).
 
 
 ### Results analysis
