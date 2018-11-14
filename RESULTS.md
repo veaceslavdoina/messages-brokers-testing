@@ -31,6 +31,7 @@
 ## ActiveMQ
 
  1. [Test-ActiveMQ-5.15.7-standalone-20181110-143604](#test-activemq-5157-standalone-20181110-143604)
+ 2. [Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010](#test-activemq-5157-standalone-xa-20181114-090010)
 
 
 ### Test-ActiveMQ-5.15.7-standalone-20181110-143604
@@ -58,6 +59,34 @@
 | Produced messages size        | 3,96 GB  | 4,71 GB   | 4,73 GB   | 4,56 GB   | 4,50 GB  |
 | Max Produced Message Size     | 8,053 B  | 8,053 B   | 8,053 B   | 8,053 B   | 8,053 B  |
 | Average Produced Message Size | 4,540 B  | 4,538 B   | 4,537 B   | 4,541 B   | 4,538 B  |
+| Min Produced Message Size     | 1,024 B  | 1,024 B   | 1,024 B   | 1,024 B   | 1,024 B  |
+
+
+### Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010
+
+ **Scenario 1** - Producer and then consumer
+
+| [Statistic](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports)              | [Test 1](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports/Report-20181114-090010-1.html)   | [Test 2](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports/Report-20181114-090010-2.html)   | [Test 3](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports/Report-20181114-090010-3.html)   | [Test 4](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports/Report-20181114-090010-4.html)   | [Test 5](results/Test-ActiveMQ-5.15.7-standalone-xa-20181114-090010/Reports/Report-20181114-090010-5.html)   |
+| ----------------------------- | -------- | --------- | --------- | --------- | -------- |
+| Test duration                 | 01:45:07 | 00:43:46  | 00:25:06  | 00:23:03  | 01:02:26 |
+| Producing duration            | 00:05:00 | 00:05:00  | 00:05:00  | 00:05:00  | 00:05:00 |
+| Produced with roll-back       | 249,259  | 221,684   | 313,271   | 263,019   | 206,451  |
+| Consumed with roll-back       | 249,471  | 221,750   | 313,278   | 263,028   | 206,546  |
+| Rolled-back produced          | 0        | 0         | 0         | 0         | 0        |
+| Rolled-back consumed          | 0        | 0         | 0         | 0         | 0        |
+| Messages produced             | 249,259  | 221,684   | 313,271   | 263,019   | 206,451  |
+| Messages consumed             | 249,471  | 221,750   | 313,278   | 263,028   | 206,546  |
+| Difference                    | -212     | -66       | -7        | -9        | -95      |
+| Lost messages                 | 671      | 222       | 92        | 87        | 378      |
+| Duplicate messages            | 0        | 0         | 0         | 0         | 0        |
+| Ghost messages                | 0        | 0         | 0         | 0         | 0        |
+| Alien messages                | 0        | 0         | 0         | 0         | 0        |
+| Undead messages               | 0        | 0         | 0         | 0         | 0        |
+| Messages remained             | 0        | 0         | 0         | 0         | 0        |
+| Messages in DLQ               | 0        | 0         | 0         | 0         | 0        |
+| Produced messages size        | 1,13 GB  | 1,01 GB   | 1,42 GB   | 1,20 GB   | 0,94 GB  |
+| Max Produced Message Size     | 8,053 B  | 8,053 B   | 8,053 B   | 8,053 B   | 8,053 B  |
+| Average Produced Message Size | 4,539 B  | 4,545 B   | 4,537 B   | 4,539 B   | 4,541 B  |
 | Min Produced Message Size     | 1,024 B  | 1,024 B   | 1,024 B   | 1,024 B   | 1,024 B  |
 
 
