@@ -23,7 +23,7 @@
 
  In **doubt messages** are messages that may have been committed or rolled back or that may be stuck in prepared state. With normal transactions this state is used when the tool has tried to commit but failed. If the failure is due to a broker crash or network failure it is not clear if the problem happened before or after the message was committed on the server. For two phase transactions there are a wide range of errors that leave messages in doubt. In all cases in doubt transactions require more analysis.
 
- A **ghost message** has been sent but rolled back; if ghost messages are found something is seriously wrong. Yet it happens.
+ A **ghost message** has been sent, rolled back, but was delivered anyway. For explicit rollbacks (using the rollback option) that is very serious as it means that transactions are broken. There may be rollbacks caused by lost connections or other technical issues where a message has been committed but where the tool assumed it had been rolled back. Normally those messages should be listed as in doubt, but they may end up here.
 
  An **alien message** is a message without the properties set by the producer. In a correctness test where the consumer is used with the producer and with the id property set, there should be none. For a performance test where messages are generated without the id property they are normal.
 
