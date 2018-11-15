@@ -21,6 +21,8 @@
 
  A **duplicate message** has been delivered and (more importantly) committed by the consumer at least twice.
 
+ In **doubt messages** are messages that may have been committed or rolled back or that may be stuck in prepared state. With normal transactions this state is used when the tool has tried to commit but failed. If the failure is due to a broker crash or network failure it is not clear if the problem happened before or after the message was committed on the server. For two phase transactions there are a wide range of errors that leave messages in doubt. In all cases in doubt transactions require more analysis.
+
  A **ghost message** has been sent but rolled back; if ghost messages are found something is seriously wrong. Yet it happens.
 
  An **alien message** is a message without the properties set by the producer. In a correctness test where the consumer is used with the producer and with the id property set, there should be none. For a performance test where messages are generated without the id property they are normal.
