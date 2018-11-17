@@ -45,12 +45,14 @@
 - name: Enables the RMQ rabbitmq_management plugin
   rabbitmq_plugin:
     names: rabbitmq_management
+    new_only: yes
     state: enabled
   become: true
 
 - name: Enables the RMQ rabbitmq_jms_topic_exchange plugin
   rabbitmq_plugin:
     names: rabbitmq_jms_topic_exchange
+    new_only: yes
     state: enabled
   become: true
 
