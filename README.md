@@ -397,4 +397,4 @@ done
     * [Amazon MQ lose messages on broker restarts](https://forums.aws.amazon.com/thread.jspa?threadID=293247&tstart=0)
 
  4. RabbitMQ
-    * [RabbitMQ transactions issues on server restarts](#https://groups.google.com/forum/#!topic/rabbitmq-users/zPrqSY7TSR8)
+    * [RabbitMQ transactions issues on server restarts](https://groups.google.com/forum/#!topic/rabbitmq-users/zPrqSY7TSR8)
