@@ -48,6 +48,12 @@
     state: enabled
   become: true
 
+- name: Enables the RMQ rabbitmq_jms_topic_exchange plugin
+  rabbitmq_plugin:
+    names: rabbitmq_jms_topic_exchange
+    state: enabled
+  become: true
+
 - name: Add admin user to the RMQ
   rabbitmq_user:
     user: "{{ rmq_admin_name }}"
