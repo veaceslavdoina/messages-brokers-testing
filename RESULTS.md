@@ -159,6 +159,7 @@
 ## RabbitMQ
 
  1. [Test-RabbitMQ-3.7.8-standalone-20181110-173120](#test-rabbitmq-378-standalone-20181110-173120)
+ 2. [Test-RabbitMQ-3.7.8-standalone-20181117-173201](#test-rabbitmq-378-standalone-20181117-173201)
 
 
 ### Test-RabbitMQ-3.7.8-standalone-20181110-173120
@@ -187,6 +188,38 @@
 | Max Produced Message Size     | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  |
 | Average Produced Message Size | 4,536 B  | 4,538 B  | 4,538 B  | 4,538 B  | 4,537 B  |
 | Min Produced Message Size     | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  |
+
+
+### Test-RabbitMQ-3.7.8-standalone-20181117-173201
+
+ **Scenario 1** - Producer and then consumer
+
+| [Statistic](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports)              | [Test 1](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports/Report-20181117-173201-1.html)   | [Test 2](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports/Report-20181117-173201-2.html)   | [Test 3](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports/Report-20181117-173201-3.html)   | [Test 4](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports/Report-20181117-173201-4.html)   | [Test 5](results/Test-RabbitMQ-3.7.8-standalone-20181117-173201/Reports/Report-20181117-173201-5.html)   |
+| ----------------------------- | -------- | -------- | -------- | -------- | -------- |
+| Test duration                 | 00:08:58 | 00:09:39 | 00:09:04 | 00:09:20 | 00:09:40 |
+| Producing duration            | 00:05:00 | 00:05:00 | 00:05:00 | 00:05:00 | 00:05:00 |
+| Produced with roll-back       | 497,619  | 522,818  | 522,206  | 535,349  | 539,047  |
+| Consumed with roll-back       | 497,617  | 522,826  | 522,196  | 535,355  | 539,046  |
+| Rolled-back produced          | 0        | 0        | 0        | 0        | 0        |
+| Rolled-back consumed          | 0        | 0        | 0        | 0        | 0        |
+| In doubt produced             | 40       | 40       | 50       | 40       | 40       |
+| In doubt consumed             | 19       | 15       | 10       | 18       | 20       |
+| Messages produced             | 497,579  | 522,778  | 522,156  | 535,309  | 539,007  |
+| Messages consumed             | 497,598  | 522,811  | 522,186  | 535,337  | 539,026  |
+| Difference                    | -19      | -33      | -30      | -28      | -19      |
+| Lost messages                 | 0        | 0        | 0        | 0        | 0        |
+| Duplicate messages            | 0        | 0        | 0        | 0        | 0        |
+| Ghost messages                | 0        | 0        | 0        | 0        | 0        |
+| Alien messages                | 0        | 0        | 0        | 0        | 0        |
+| Undead messages               | 0        | 0        | 0        | 0        | 0        |
+| Messages remained             | 0        | 0        | 0        | 0        | 0        |
+| Messages in DLQ               | 0        | 0        | 0        | 0        | 0        |
+| Produced messages size        | 2,26 GB  | 2,37 GB  | 2,37 GB  | 2,43 GB  | 2,44 GB  |
+| Max Produced Message Size     | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  | 8,053 B  |
+| Average Produced Message Size | 4,536 B  | 4,539 B  | 4,539 B  | 4,538 B  | 4,536 B  |
+| Min Produced Message Size     | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  | 1,024 B  |
+| Produced average TPS          | 1,658    | 1,742    | 1,770    | 1,784    | 1,796    |
+| Consumed average TPS          | 4,364    | 4,116    | 4,835    | 4,248    | 4,382    |
 
 
 ## Amazon MQ
