@@ -11,6 +11,8 @@ THREADS=10
 DURATION=5
 BROKER_URL="tcp://10.0.30.28:61616"
 CONSUMER_TIMEOUT=30000
+MINSIZE=100000
+MAXSIZE=100000
 QUEUE="Test-$NOW"
 
 TEST_FOLDER="$TEST_NAME-$NOW"
@@ -54,7 +56,10 @@ do
   -t "$THREADS" \
   -duration "$DURATION" \
   -id \
+  -xa \
   -type TEXT \
+  -min $MINSIZE \
+  -max $MAXSIZE \
   -queue "$QUEUE"-"$i"
 
   # Run Consumer
@@ -65,6 +70,7 @@ do
   -timeout "$CONSUMER_TIMEOUT" \
   -t "$THREADS" \
   -verify \
+  -xa \
   -drain \
   -queue "$QUEUE"-"$i"
 
